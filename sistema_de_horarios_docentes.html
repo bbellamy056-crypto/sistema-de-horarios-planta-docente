@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Horarios - Planta Docente</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            blue: '#004A99',
+                            slate: '#607D8B',
+                            cyan: '#00BCD4',
+                            bg: '#F4F6F9',
+                            dark: '#1E293B'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #F4F6F9;
+        }
+        
+        .grid-container {
+            display: grid;
+            grid-template-columns: 110px repeat(5, minmax(180px, 1fr));
+        }
+
+        @media (max-width: 1024px) {
+            .grid-container-wrapper {
+                overflow-x: auto;
+            }
+            .grid-container {
+                min-width: 900px;
+            }
+        }
+
+        .card-teorica {
+            background-color: #E8EAF6;
+            border-left: 4px solid #004A99;
+            color: #1E293B;
+        }
+
+        .card-lab {
+            background-color: #E0F7FA;
+            border-left: 4px solid #00BCD4;
+            color: #004D40;
+        }
+
+        /* Custom scrollbar for grid cells */
+        .slot-cell {
+            min-height: 120px;
+        }
+
+        /* Modal backdrop transition */
+        .modal-backdrop {
+            background-color: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-800">
+
+    <!-- Header Navbar -->
+    <header class="bg-brand-blue text-white shadow-lg sticky top-0 z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-calendar-days text-brand-cyan text-2xl"></i>
+                <h1 class="text-xl font-bold tracking-tight">Sistema de Gestión de Horarios</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="bg-brand-cyan text-slate-900 font-semibold px-3 py-1 rounded-full text-xs shadow-sm">
+                    Periodo: 2026-2
+                </span>
+                <span class="hidden sm:inline-block text-xs bg-white/10 px-3 py-1 rounded-full border border-white/20">
+                    <i class="fa-solid fa-user-shield mr-1"></i> Planta Docente
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- Banner & Quick Stats -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 mb-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Malla Horaria Semanal</h2>
+                    <p class="text-sm text-slate-500 mt-1">Asignación de asignaturas, laboratorios y grupos para docentes de planta.</p>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center space-x-2 text-xs bg-slate-100 px-3 py-2 rounded-lg border">
+                        <span class="w-3 h-3 rounded-full bg-brand-blue inline-block"></span>
+                        <span class="font-medium text-slate-700">Teórica</span>
+                        <span class="w-3 h-3 rounded-full bg-brand-cyan inline-block ml-2"></span>
+                        <span class="font-medium text-slate-700">Laboratorio</span>
+                    </div>
+
+                    <button id="btnOpenModal" class="bg-brand-blue hover:bg-blue-800 text-white font-medium px-4 py-2.5 rounded-lg shadow-md hover:shadow-lg transition flex items-center gap-2 text-sm">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Nueva Asignación</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label for="filterDocente" class="block text-xs font-bold text-brand-slate uppercase tracking-wider mb-1">Filtrar por Docente</label>
+                    <select id="filterDocente" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                        <option value="">-- Todos los Docentes --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="filterAula" class="block text-xs font-bold text-brand-slate uppercase tracking-wider mb-1">Filtrar por Aula / Lab</label>
+                    <select id="filterAula" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                        <option value="">-- Todas las Aulas --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="filterTipo" class="block text-xs font-bold text-brand-slate uppercase tracking-wider mb-1">Tipo de Clase</label>
+                    <select id="filterTipo" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                        <option value="">-- Todos los Tipos --</option>
+                        <option value="Teórica">Teórica</option>
+                        <option value="Laboratorio">Laboratorio</option>
+                    </select>
+                </div>
+
+                <div class="flex items-end">
+                    <button id="btnClearFilters" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium p-2 rounded-lg border border-slate-300 transition text-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-filter-circle-xmark"></i>
+                        <span>Limpiar Filtros</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Alert Container -->
+        <div id="alertContainer" class="mb-4 hidden"></div>
+
+        <!-- Weekly Grid Schedule -->
+        <section class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+            <div class="grid-container-wrapper">
+                <div class="grid-container bg-slate-200 gap-px">
+                    
+                    <!-- Grid Headers -->
+                    <div class="bg-brand-slate text-white p-3 font-semibold text-center text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center">
+                        Franja
+                    </div>
+                    <div class="bg-brand-slate text-white p-3 font-semibold text-center text-xs sm:text-sm uppercase tracking-wider">
+                        Lunes
+                    </div>
+                    <div class="bg-brand-slate text-white p-3 font-semibold text-center text-xs sm:text-sm uppercase tracking-wider">
+                        Martes
+                    </div>
+                    <div class="bg-brand-slate text-white p-3 font-semibold text-center text-xs sm:text-sm uppercase tracking-wider">
+                        Miércoles
+                    </div>
+                    <div class="bg-brand-slate text-white p-3 font-semibold text-center text-xs sm:text-sm uppercase tracking-wider">
+                        Jueves
+                    </div>
+                    <div class="bg-brand-slate text-white p-3 font-semibold text-center text-xs sm:text-sm uppercase tracking-wider">
+                        Viernes
+                    </div>
+
+                    <!-- Grid Slots will be populated by JavaScript -->
+                    <div id="scheduleGridBody" class="contents"></div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Form: Add New Class Assignment -->
+    <div id="modalAssignment" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden transform transition-all duration-200 scale-95 opacity-0" id="modalContent">
+            
+            <!-- Modal Header -->
+            <div class="bg-brand-blue px-6 py-4 flex items-center justify-between text-white">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-plus-circle text-brand-cyan text-lg"></i>
+                    <h3 class="font-bold text-lg">Nueva Asignación de Clase</h3>
+                </div>
+                <button id="btnCloseModal" class="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form -->
+            <form id="formAssignment" class="p-6 space-y-4">
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nombre de la Asignatura *</label>
+                    <input type="text" id="inputAsignatura" required placeholder="Ej. Algoritmos y Estructuras" 
+                           class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Docente Asignado *</label>
+                        <input type="text" id="inputDocente" required placeholder="Ej. Prof. Samuel Calle" 
+                               class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Aula / Laboratorio *</label>
+                        <input type="text" id="inputAula" required placeholder="Ej. Aula 301 / Lab C-2" 
+                               class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Tipo de Clase *</label>
+                        <select id="selectTipo" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                            <option value="Teórica">Teórica</option>
+                            <option value="Laboratorio">Laboratorio</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Grupo *</label>
+                        <input type="text" id="inputGrupo" required placeholder="Ej. G01" 
+                               class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Día de la Semana *</label>
+                        <select id="selectDia" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                            <option value="Lunes">Lunes</option>
+                            <option value="Martes">Martes</option>
+                            <option value="Miércoles">Miércoles</option>
+                            <option value="Jueves">Jueves</option>
+                            <option value="Viernes">Viernes</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Franja Horaria *</label>
+                        <select id="selectFranja" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                            <option value="06:00 - 08:00">06:00 - 08:00</option>
+                            <option value="08:00 - 10:00">08:00 - 10:00</option>
+                            <option value="10:00 - 12:00">10:00 - 12:00</option>
+                            <option value="12:00 - 14:00">12:00 - 14:00</option>
+                            <option value="14:00 - 16:00">14:00 - 16:00</option>
+                            <option value="16:00 - 18:00">16:00 - 18:00</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="modalFormError" class="hidden p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs rounded"></div>
+
+                <!-- Modal Actions -->
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <button type="button" id="btnCancelModal" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 transition text-sm font-medium">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-lg bg-brand-blue hover:bg-blue-800 text-white font-medium shadow transition text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Guardar Asignación</span>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Form: View/Delete Details -->
+    <div id="modalDetails" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden transform transition-all duration-200 scale-95 opacity-0" id="detailsContent">
+            
+            <div class="bg-brand-slate px-6 py-4 flex items-center justify-between text-white">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info"></i> Detalle de Asignación
+                </h3>
+                <button id="btnCloseDetails" class="text-white/80 hover:text-white hover:bg-white/10 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div>
+                    <span id="detailBadge" class="inline-block px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider mb-2"></span>
+                    <h2 id="detailAsignatura" class="text-xl font-bold text-slate-900"></h2>
+                    <p id="detailGrupo" class="text-xs text-slate-500 font-semibold"></p>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500"><i class="fa-solid fa-user-tie mr-1.5 text-brand-blue"></i> Docente:</span>
+                        <span id="detailDocente" class="font-semibold text-slate-800"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500"><i class="fa-solid fa-location-dot mr-1.5 text-brand-blue"></i> Aula:</span>
+                        <span id="detailAula" class="font-semibold text-slate-800"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500"><i class="fa-solid fa-calendar-day mr-1.5 text-brand-blue"></i> Día:</span>
+                        <span id="detailDia" class="font-semibold text-slate-800"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500"><i class="fa-solid fa-clock mr-1.5 text-brand-blue"></i> Horario:</span>
+                        <span id="detailFranja" class="font-semibold text-slate-800"></span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                    <button id="btnDeleteAssignment" class="px-4 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-sm transition flex items-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span>Eliminar</span>
+                    </button>
+                    <button id="btnCloseDetailsBtn" class="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 font-medium text-sm transition">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Data Structure & Initial Mock Data
+        const timeSlots = [
+            "06:00 - 08:00",
+            "08:00 - 10:00",
+            "10:00 - 12:00",
+            "12:00 - 14:00",
+            "14:00 - 16:00",
+            "16:00 - 18:00"
+        ];
+
+        const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+
+        let assignments = [
+            {
+                id: "1",
+                asignatura: "Base de Datos II",
+                docente: "Prof. Samuel Calle",
+                aula: "Lab Comp 2",
+                tipo: "Laboratorio",
+                grupo: "G01",
+                dia: "Lunes",
+                franja: "06:00 - 08:00"
+            },
+            {
+                id: "2",
+                asignatura: "Base de Datos II",
+                docente: "Prof. Samuel Calle",
+                aula: "Lab Comp 2",
+                tipo: "Laboratorio",
+                grupo: "G01",
+                dia: "Miércoles",
+                franja: "06:00 - 08:00"
+            },
+            {
+                id: "3",
+                asignatura: "Ingeniería de Software",
+                docente: "Prof. Jaime Zapata",
+                aula: "Aula 301",
+                tipo: "Teórica",
+                grupo: "G02",
+                dia: "Martes",
+                franja: "08:00 - 10:00"
+            },
+            {
+                id: "4",
+                asignatura: "Ingeniería de Software",
+                docente: "Prof. Jaime Zapata",
+                aula: "Aula 301",
+                tipo: "Teórica",
+                grupo: "G02",
+                dia: "Jueves",
+                franja: "08:00 - 10:00"
+            }
+        ];
+
+        let selectedAssignmentId = null;
+
+        // DOM Elements
+        const gridBody = document.getElementById('scheduleGridBody');
+        const modalAssignment = document.getElementById('modalAssignment');
+        const modalContent = document.getElementById('modalContent');
+        const formAssignment = document.getElementById('formAssignment');
+        const modalFormError = document.getElementById('modalFormError');
+
+        const modalDetails = document.getElementById('modalDetails');
+        const detailsContent = document.getElementById('detailsContent');
+
+        const filterDocente = document.getElementById('filterDocente');
+        const filterAula = document.getElementById('filterAula');
+        const filterTipo = document.getElementById('filterTipo');
+        const btnClearFilters = document.getElementById('btnClearFilters');
+
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            renderGrid();
+            updateFilterOptions();
+            setupEventListeners();
+        });
+
+        // Render Schedule Grid
+        function renderGrid() {
+            gridBody.innerHTML = '';
+
+            const docenteFilterVal = filterDocente.value;
+            const aulaFilterVal = filterAula.value;
+            const tipoFilterVal = filterTipo.value;
+
+            // Filter assignments based on dropdowns
+            const filteredAssignments = assignments.filter(item => {
+                const matchDocente = !docenteFilterVal || item.docente === docenteFilterVal;
+                const matchAula = !aulaFilterVal || item.aula === aulaFilterVal;
+                const matchTipo = !tipoFilterVal || item.tipo === tipoFilterVal;
+                return matchDocente && matchAula && matchTipo;
+            });
+
+            timeSlots.forEach(slot => {
+                // Render Time Column Header
+                const timeCell = document.createElement('div');
+                timeCell.className = "bg-white p-3 text-xs font-bold text-slate-500 flex items-center justify-center text-center border-r border-slate-100";
+                timeCell.innerText = slot;
+                gridBody.appendChild(timeCell);
+
+                // Render Day Cells
+                days.forEach(day => {
+                    const dayCell = document.createElement('div');
+                    dayCell.className = "bg-white p-2 slot-cell relative transition hover:bg-slate-50 flex flex-col gap-2";
+                    dayCell.dataset.day = day;
+                    dayCell.dataset.slot = slot;
+
+                    // Find matching classes for this slot and day
+                    const slotClasses = filteredAssignments.filter(a => a.dia === day && a.franja === slot);
+
+                    slotClasses.forEach(item => {
+                        const card = createClassCard(item);
+                        dayCell.appendChild(card);
+                    });
+
+                    gridBody.appendChild(dayCell);
+                });
+            });
+        }
+
+        // Create Individual Class Card HTML
+        function createClassCard(item) {
+            const card = document.createElement('div');
+            const isLab = item.tipo === 'Laboratorio';
+            card.className = `p-2.5 rounded-lg shadow-sm cursor-pointer transition transform hover:-translate-y-0.5 hover:shadow-md text-xs font-sans ${isLab ? 'card-lab' : 'card-teorica'}`;
+            
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-1">
+                    <h4 class="font-bold text-slate-900 leading-tight">${escapeHtml(item.asignatura)}</h4>
+                    <span class="text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-slate-200 font-semibold text-slate-700 shrink-0 ml-1">${escapeHtml(item.grupo)}</span>
+                </div>
+                <p class="text-slate-600 text-[11px]"><i class="fa-solid fa-location-dot mr-1"></i>${escapeHtml(item.aula)}</p>
+                <p class="text-slate-600 text-[11px] mt-0.5"><i class="fa-solid fa-user-tie mr-1"></i>${escapeHtml(item.docente)}</p>
+            `;
+
+            card.addEventListener('click', () => openDetailsModal(item.id));
+            return card;
+        }
+
+        // Populate Filter Options Dynamically
+        function updateFilterOptions() {
+            const currentDocente = filterDocente.value;
+            const currentAula = filterAula.value;
+
+            const docentes = [...new Set(assignments.map(a => a.docente))];
+            const aulas = [...new Set(assignments.map(a => a.aula))];
+
+            filterDocente.innerHTML = '<option value="">-- Todos los Docentes --</option>';
+            docentes.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.innerText = d;
+                if (d === currentDocente) opt.selected = true;
+                filterDocente.appendChild(opt);
+            });
+
+            filterAula.innerHTML = '<option value="">-- Todas las Aulas --</option>';
+            aulas.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a;
+                opt.innerText = a;
+                if (a === currentAula) opt.selected = true;
+                filterAula.appendChild(opt);
+            });
+        }
+
+        // Event Listeners Setup
+        function setupEventListeners() {
+            // Modal Toggles
+            document.getElementById('btnOpenModal').addEventListener('click', openAssignmentModal);
+            document.getElementById('btnCloseModal').addEventListener('click', closeAssignmentModal);
+            document.getElementById('btnCancelModal').addEventListener('click', closeAssignmentModal);
+            
+            document.getElementById('btnCloseDetails').addEventListener('click', closeDetailsModal);
+            document.getElementById('btnCloseDetailsBtn').addEventListener('click', closeDetailsModal);
+
+            // Form Submit
+            formAssignment.addEventListener('submit', handleAddAssignment);
+
+            // Delete Action
+            document.getElementById('btnDeleteAssignment').addEventListener('click', handleDeleteAssignment);
+
+            // Filters
+            filterDocente.addEventListener('change', renderGrid);
+            filterAula.addEventListener('change', renderGrid);
+            filterTipo.addEventListener('change', renderGrid);
+
+            btnClearFilters.addEventListener('click', () => {
+                filterDocente.value = '';
+                filterAula.value = '';
+                filterTipo.value = '';
+                renderGrid();
+            });
+
+            // Close Modals when clicking outside content
+            modalAssignment.addEventListener('click', (e) => {
+                if (e.target === modalAssignment) closeAssignmentModal();
+            });
+            modalDetails.addEventListener('click', (e) => {
+                if (e.target === modalDetails) closeDetailsModal();
+            });
+        }
+
+        // Open Assignment Modal
+        function openAssignmentModal() {
+            modalFormError.classList.add('hidden');
+            formAssignment.reset();
+            modalAssignment.classList.remove('hidden');
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        // Close Assignment Modal
+        function closeAssignmentModal() {
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modalAssignment.classList.add('hidden');
+            }, 200);
+        }
+
+        // Open Details Modal
+        function openDetailsModal(id) {
+            const item = assignments.find(a => a.id === id);
+            if (!item) return;
+
+            selectedAssignmentId = id;
+
+            document.getElementById('detailAsignatura').innerText = item.asignatura;
+            document.getElementById('detailGrupo').innerText = `Grupo: ${item.grupo}`;
+            document.getElementById('detailDocente').innerText = item.docente;
+            document.getElementById('detailAula').innerText = item.aula;
+            document.getElementById('detailDia').innerText = item.dia;
+            document.getElementById('detailFranja').innerText = item.franja;
+
+            const badge = document.getElementById('detailBadge');
+            badge.innerText = item.tipo;
+            if (item.tipo === 'Laboratorio') {
+                badge.className = 'inline-block px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider mb-2 bg-cyan-100 text-cyan-800 border border-cyan-300';
+            } else {
+                badge.className = 'inline-block px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider mb-2 bg-blue-100 text-blue-800 border border-blue-300';
+            }
+
+            modalDetails.classList.remove('hidden');
+            setTimeout(() => {
+                detailsContent.classList.remove('scale-95', 'opacity-0');
+                detailsContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        // Close Details Modal
+        function closeDetailsModal() {
+            detailsContent.classList.remove('scale-100', 'opacity-100');
+            detailsContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modalDetails.classList.add('hidden');
+                selectedAssignmentId = null;
+            }, 200);
+        }
+
+        // Handle Add New Assignment Form Submit
+        function handleAddAssignment(e) {
+            e.preventDefault();
+
+            const asignatura = document.getElementById('inputAsignatura').value.trim();
+            const docente = document.getElementById('inputDocente').value.trim();
+            const aula = document.getElementById('inputAula').value.trim();
+            const tipo = document.getElementById('selectTipo').value;
+            const grupo = document.getElementById('inputGrupo').value.trim();
+            const dia = document.getElementById('selectDia').value;
+            const franja = document.getElementById('selectFranja').value;
+
+            // Validation: Check for Teacher or Room Overlaps
+            const conflictAula = assignments.find(a => a.dia === dia && a.franja === franja && a.aula.toLowerCase() === aula.toLowerCase());
+            if (conflictAula) {
+                showModalError(`El aula "${aula}" ya está ocupada el día ${dia} en la franja ${franja} por ${conflictAula.asignatura}.`);
+                return;
+            }
+
+            const conflictDocente = assignments.find(a => a.dia === dia && a.franja === franja && a.docente.toLowerCase() === docente.toLowerCase());
+            if (conflictDocente) {
+                showModalError(`El docente "${docente}" ya tiene asignada la clase de ${conflictDocente.asignatura} el día ${dia} a esa misma hora.`);
+                return;
+            }
+
+            // Create New Assignment Record
+            const newAssignment = {
+                id: Date.now().toString(),
+                asignatura,
+                docente,
+                aula,
+                tipo,
+                grupo,
+                dia,
+                franja
+            };
+
+            assignments.push(newAssignment);
+
+            // Re-render
+            updateFilterOptions();
+            renderGrid();
+            closeAssignmentModal();
+
+            showAlert(`Asignación guardada exitosamente para ${asignatura} (${dia}, ${franja}).`, 'success');
+        }
+
+        // Handle Delete Assignment
+        function handleDeleteAssignment() {
+            if (!selectedAssignmentId) return;
+
+            assignments = assignments.filter(a => a.id !== selectedAssignmentId);
+            updateFilterOptions();
+            renderGrid();
+            closeDetailsModal();
+            showAlert('La asignación ha sido eliminada de la malla horaria.', 'info');
+        }
+
+        // Show Modal Specific Error
+        function showModalError(msg) {
+            modalFormError.innerText = msg;
+            modalFormError.classList.remove('hidden');
+        }
+
+        // Show Global Toast Notification
+        function showAlert(msg, type = 'success') {
+            const container = document.getElementById('alertContainer');
+            const bgClass = type === 'success' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' : 'bg-blue-50 border-blue-500 text-blue-800';
+            const iconClass = type === 'success' ? 'fa-circle-check text-emerald-600' : 'fa-circle-info text-blue-600';
+
+            container.innerHTML = `
+                <div class="p-4 rounded-xl border-l-4 shadow-sm flex items-center justify-between ${bgClass}">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid ${iconClass} text-lg"></i>
+                        <span class="text-sm font-medium">${escapeHtml(msg)}</span>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `;
+            container.classList.remove('hidden');
+
+            setTimeout(() => {
+                container.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Helper to escape HTML text inputs
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, function(m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[m];
+            });
+        }
+    </script>
+</body>
+</html>
